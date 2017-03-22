@@ -9,16 +9,21 @@ public class SleepingBarber {
         
         private Barberia barberia;
         private String nombre;
-        
-        public Barbero(String nombre, Barberia barberia) {
-            this.nombre = nombre;
+	
+	public Barbero(String nombre, Barberia barberia) {
+	    this.nombre = nombre;
             this.barberia = barberia;
         }
+
+	@Override
+	public String toString(){
+	    return this.nombre;
+	}
 
         @Override
         public void run() {
             while (true) {
-                barberia.cortarCabello();
+                barberia.cortarCabello(this);
             }
         }
         
@@ -28,7 +33,7 @@ public class SleepingBarber {
         
         private int clienteId;
         private Barberia barberia;
-
+      	
         public Cliente(int clienteId, Barberia barberia) {
             this.clienteId = clienteId;
             this.barberia = barberia;
@@ -60,27 +65,31 @@ public class SleepingBarber {
         private Semaforo barberoSem;
         private SemaforoBin mutex;
         private Semaforo cortandoSem;
-        private int esperando;
-        
-        public Barberia(int numSillas) {
+	private int esperando;
+	
+	/* Le paso el número de barberos a esto para poder inicializar el semáforo */
+        public Barberia(int numSillas, int numBarberos) {
             this.numSillas = numSillas;
             llenoSem = new Semaforo(0);
-            barberoSem = new Semaforo(1);
-            mutex = new SemaforoBin(1);
+	    barberoSem = new Semaforo(numBarberos);
+            mutex = new SemaforoBin(1); 
             cortandoSem = new Semaforo(0);
-        }
+	}
 
-        private void cortarCabello() {
-            System.out.printf("Tiempo: %d, BARBERO DISPONIBLE... esperando cliente\n",
+	/* nombre - El nombre del Barbero que corta */
+        private void cortarCabello(Barbero b) {
+            System.out.printf("Tiempo: %d, BARBERO " + b +" DISPONIBLE... esperando cliente\n",
                     System.currentTimeMillis());
             llenoSem.p();
-            mutex.p();
+
+	    mutex.p();
             esperando--;
-            System.out.printf("Tiempo: %d, EL BARBERO TIENE CLIENTE. Clientes en espera: %d\n",
+            System.out.printf("Tiempo: %d, EL BARBERO " + b + " TIENE CLIENTE. Clientes en espera: %d\n",
                     System.currentTimeMillis(), esperando);
             mutex.v();
-            cortandoSem.p();
-            barberoSem.v();
+
+	    cortandoSem.p();
+	    barberoSem.v();
         }
 
         private void solicitarCorte(int clienteId) {
@@ -92,7 +101,8 @@ public class SleepingBarber {
                 llenoSem.v();
                 mutex.v();
                 barberoSem.p();
-                System.out.printf("Tiempo: %d, Cliente %d está siendo atendido\n",
+		
+		System.out.printf("Tiempo: %d, Cliente %d está siendo atendido\n",
                         System.currentTimeMillis(), clienteId);
                 try {
                     Thread.sleep((long) (Math.random() * 10000));
@@ -100,9 +110,9 @@ public class SleepingBarber {
                     ex.printStackTrace();
                 }
                 System.out.printf("Tiempo: %d, Cliente %d ha sido atendido\n",
-                        System.currentTimeMillis(), clienteId);
-                cortandoSem.v();
-            } else {
+				  System.currentTimeMillis(), clienteId);
+		cortandoSem.v();
+	    } else {
                 System.out.printf("Tiempo: %d, Cliente %s, barbería llena, regresará después\n",
                         System.currentTimeMillis(), clienteId);
                 mutex.v();
@@ -113,34 +123,36 @@ public class SleepingBarber {
     public static void main(String... args) {
         int numSillas = 2;
         int numClientes = 5;
-        
-        for (int x = 0; x < args.length; x++) {
-            try {
+	int numBarberos = 3; /* Número de barberos disponibles para cortar */
+
+	for (int x = 0; x < args.length; x++) {
+	    try {
                 if (args[x].startsWith("-c")) {
-                    numClientes = Integer.parseInt(args[x].substring(1));
+                    numClientes = Integer.parseInt(args[x].substring(2));
                     if (numClientes <= 0) {
                         numClientes = 2;
                     }
                 } else if (args[x].startsWith("-s")) {
-                    numSillas = Integer.parseInt(args[x].substring(1));
+                    numSillas = Integer.parseInt(args[x].substring(2));
                     if (numSillas <= 0) {
                         numSillas = 2;
                     }
-                }
+                } else if(args[x].startsWith("-b")) {
+		    System.out.println(args[x].substring(1));
+		    
+		    numBarberos = Integer.parseInt(args[x].substring(2));
+		    if(numBarberos <= 0)
+			numBarberos = 1;
+		}
             } catch (Exception ex) {}
         }
         
-        if (args.length == 1) {
-            try {
-                
-            } catch (NumberFormatException ex) {
-            }
-        }
-        
-        
-        Barberia barb = new Barberia(numSillas);
-        Barbero barbero = new Barbero("Barbero 1", barb);
-        barbero.start();
+        Barberia barb = new Barberia(numSillas, numBarberos);
+	/* Inicializando barberos... */
+	for(int i = 1; i <= numBarberos; ++i){
+	    Barbero barbero = new Barbero("Barbero " + i, barb);
+	    barbero.start();
+	}
         
         for (int x = 1; x <= numClientes; x++) {
             new Cliente(x, barb).start();
