@@ -138,8 +138,6 @@ public class SleepingBarber {
                         numSillas = 2;
                     }
                 } else if(args[x].startsWith("-b")) {
-		    System.out.println(args[x].substring(1));
-		    
 		    numBarberos = Integer.parseInt(args[x].substring(2));
 		    if(numBarberos <= 0)
 			numBarberos = 1;
